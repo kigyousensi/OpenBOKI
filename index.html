@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>IndexedDB Hello World</title>
+</head>
+<body>
+    <h1>IndexedDB Hello World</h1>
+
+    <button id="saveButton">データを保存して読み出す</button>
+
+    <p id="result">まだデータは読み出していません。</p>
+
+    <script>
+        // データベースを開く
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("HelloDatabase", 1);
+
+                // データベースの新規作成時に実行される
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+
+                    db.createObjectStore("messages", {
+                        keyPath: "id"
+                    });
+                };
+
+                // データベースを開けた
+                request.onsuccess = () => {
+                    resolve(request.result);
+                };
+
+                // データベースを開けなかった
+                request.onerror = () => {
+                    reject(request.error);
+                };
+            });
+        }
+
+        // データを保存する
+        function saveMessage(db, message) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(
+                    "messages",
+                    "readwrite"
+                );
+
+                const store = transaction.objectStore("messages");
+
+                store.put({
+                    id: 1,
+                    text: message
+                });
+
+                transaction.oncomplete = () => {
+                    resolve();
+                };
+
+                transaction.onerror = () => {
+                    reject(transaction.error);
+                };
+
+                transaction.onabort = () => {
+                    reject(transaction.error);
+                };
+            });
+        }
+
+        // データを読み出す
+        function readMessage(db) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(
+                    "messages",
+                    "readonly"
+                );
+
+                const store = transaction.objectStore("messages");
+                const request = store.get(1);
+
+                request.onsuccess = () => {
+                    resolve(request.result);
+                };
+
+                request.onerror = () => {
+                    reject(request.error);
+                };
+            });
+        }
+
+        // ボタンを押したときの処理
+        document.getElementById("saveButton").addEventListener(
+            "click",
+            async () => {
+                const result = document.getElementById("result");
+
+                try {
+                    const db = await openDatabase();
+
+                    await saveMessage(db, "Hello World!");
+
+                    const data = await readMessage(db);
+
+                    result.textContent = data
+                        ? data.text
+                        : "データが見つかりません。";
+
+                    db.close();
+                } catch (error) {
+                    console.error(error);
+                    result.textContent = "エラーが発生しました。";
+                }
+            }
+        );
+    </script>
+</body>
+</html>
